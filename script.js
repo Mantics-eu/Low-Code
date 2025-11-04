@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let autoAdvanceInterval;
     let autoAdvanceSpeed = 5000; // Default speed in ms (5 seconds per chain)
     let isAnimating = false;
-    let panDuration = 1500; // Duration for panning from A to C
+    let panDuration = 8000; // Duration for panning from A to C
     let ballisticDuration = 1500; // Duration for ballistic transition
 
     // --- Helper Functions ---
