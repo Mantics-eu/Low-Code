@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const intermediateFrame = {
                     x: (posC.x + nextPosA.x) / 2,
                     y: (chain.y + nextChain.y) / 2,
-                    scale: 0.8 // Zoom out
+                    scale: 1.6 // Zoom out
                 };
 
                 // Step 3a: Zoom out to intermediate position
