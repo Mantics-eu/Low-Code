@@ -6,101 +6,163 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressDotsContainer = document.getElementById('progress-dots');
 
     // --- IMPORTANT: Define the 'frames' for each chain. ---
-    // These values (x, y, scale) dictate how each section of your 'canvas.png' is displayed.
-    // 'x': Horizontal center of the target chain, as a percentage (0.0 to 1.0) of the *full image width*.
-    // 'y': Vertical center of the target chain, as a percentage (0.0 to 1.0) of the *full image height*.
-    // 'scale': How much to zoom in. A value of 2 means 200% zoom. Adjust so one chain fills the viewport nicely.
-    //
-    // Fine-tuned values based on the canvas.png layout with 8 toolchains stacked vertically.
-    const presentationFrames = [
+    // Each chain has three positions: A (left), B (center), C (right)
+    // The animation sequence: A -> pan to C -> ballistic transition -> next A -> repeat
+    const presentationChains = [
         // Chain 1: Airtable -> Postgres -> Grafana
-        { x: 0.5, y: 0.0625, scale: 2.5 },
+        {
+            y: 0.0625,
+            positions: {
+                A: { x: 0.25, scale: 2.5 },  // Left side
+                B: { x: 0.5, scale: 2.5 },   // Center
+                C: { x: 0.75, scale: 2.5 }   // Right side
+            }
+        },
         // Chain 2: WhatsApp -> Gemini -> Notion
-        { x: 0.5, y: 0.1875, scale: 2.5 },
+        {
+            y: 0.1875,
+            positions: {
+                A: { x: 0.25, scale: 2.5 },
+                B: { x: 0.5, scale: 2.5 },
+                C: { x: 0.75, scale: 2.5 }
+            }
+        },
         // Chain 3: Google Drive -> Ollama -> Excel
-        { x: 0.5, y: 0.3125, scale: 2.5 },
+        {
+            y: 0.3125,
+            positions: {
+                A: { x: 0.25, scale: 2.5 },
+                B: { x: 0.5, scale: 2.5 },
+                C: { x: 0.75, scale: 2.5 }
+            }
+        },
         // Chain 4: Gmail -> Gemini -> Post (Social Media Parallel)
-        { x: 0.5, y: 0.4375, scale: 2.5 },
+        {
+            y: 0.4375,
+            positions: {
+                A: { x: 0.25, scale: 2.5 },
+                B: { x: 0.5, scale: 2.5 },
+                C: { x: 0.75, scale: 2.5 }
+            }
+        },
         // Chain 5: Telegram -> Claude AI -> Adobe Photoshop
-        { x: 0.5, y: 0.5625, scale: 2.5 },
+        {
+            y: 0.5625,
+            positions: {
+                A: { x: 0.25, scale: 2.5 },
+                B: { x: 0.5, scale: 2.5 },
+                C: { x: 0.75, scale: 2.5 }
+            }
+        },
         // Chain 6: Discord -> ChatGPT -> Miro
-        { x: 0.5, y: 0.6875, scale: 2.5 },
+        {
+            y: 0.6875,
+            positions: {
+                A: { x: 0.25, scale: 2.5 },
+                B: { x: 0.5, scale: 2.5 },
+                C: { x: 0.75, scale: 2.5 }
+            }
+        },
         // Chain 7: Rauva -> Claude AI -> Chat / Email
-        { x: 0.5, y: 0.8125, scale: 2.5 },
+        {
+            y: 0.8125,
+            positions: {
+                A: { x: 0.25, scale: 2.5 },
+                B: { x: 0.5, scale: 2.5 },
+                C: { x: 0.75, scale: 2.5 }
+            }
+        },
         // Chain 8: Google Meet + Airtable => Ollama -> Airtable
-        { x: 0.5, y: 0.9375, scale: 2.5 },
+        {
+            y: 0.9375,
+            positions: {
+                A: { x: 0.25, scale: 2.5 },
+                B: { x: 0.5, scale: 2.5 },
+                C: { x: 0.75, scale: 2.5 }
+            }
+        }
     ];
 
-    let currentFrameIndex = 0;
+    let currentChainIndex = 0;
     let autoAdvanceInterval;
-    let autoAdvanceSpeed = 3000; // Default speed in ms (3 seconds)
+    let autoAdvanceSpeed = 5000; // Default speed in ms (5 seconds per chain)
     let isAnimating = false;
-    let transitionDuration = 1500; // Default transition duration in ms
+    let panDuration = 1500; // Duration for panning from A to C
+    let ballisticDuration = 1500; // Duration for ballistic transition
 
     // --- Helper Functions ---
     /**
      * Applies the CSS transform to the dynamic-image element based on the current frame.
-     * This centers the point (frame.x, frame.y) of the scaled image within the viewport.
-     * @param {object} frame - The current frame object with x, y, and scale properties.
+     * @param {number} x - Horizontal center as a percentage (0.0 to 1.0)
+     * @param {number} y - Vertical center as a percentage (0.0 to 1.0)
+     * @param {number} scale - Zoom level
+     * @param {number} duration - Transition duration in ms
      */
-    function updateImageTransform(frame) {
-        // The transform-origin is set to 0 0 (top-left) in CSS.
-        // The calculation below adjusts for this to effectively center the desired point.
+    function updateImageTransform(x, y, scale, duration) {
+        dynamicImage.style.transitionDuration = `${duration}ms`;
         dynamicImage.style.transform = `
-            scale(${frame.scale})
+            scale(${scale})
             translate(
-                calc(-${frame.x * 100}% + (50% / ${frame.scale})),
-                calc(-${frame.y * 100}% + (50% / ${frame.scale}))
+                calc(-${x * 100}% + (50% / ${scale})),
+                calc(-${y * 100}% + (50% / ${scale}))
             )
         `;
-        // This CSS `calc` effectively centers the point (frame.x, frame.y)
-        // after the image has been scaled.
-        // It moves the image to the left by `frame.x` of its *original* width,
-        // then adds back `50% / scale` to account for the viewport's center.
-        // This is a common pattern for "zooming to a point."
     }
 
     /**
-     * Performs the ballistic motion transition: zoom out, move, then zoom in.
-     * @param {number} newIndex - The index of the target frame.
+     * Performs the complete animation sequence for a chain: A -> pan to C -> ballistic transition
+     * @param {number} chainIndex - The index of the target chain.
      */
-    function performBallisticTransition(newIndex) {
+    function animateChain(chainIndex) {
         if (isAnimating) return;
         isAnimating = true;
 
-        // Determine the target frame
-        let targetIndex = newIndex;
-        if (targetIndex < 0) targetIndex = presentationFrames.length - 1;
-        if (targetIndex >= presentationFrames.length) targetIndex = 0;
+        // Wrap around logic
+        if (chainIndex < 0) chainIndex = presentationChains.length - 1;
+        if (chainIndex >= presentationChains.length) chainIndex = 0;
 
-        const currentFrame = presentationFrames[currentFrameIndex];
-        const nextFrame = presentationFrames[targetIndex];
+        const chain = presentationChains[chainIndex];
+        const posA = chain.positions.A;
+        const posC = chain.positions.C;
 
-        // 1. Calculate the intermediate (zoomed-out) frame
-        const intermediateFrame = {
-            // Average the x and y positions
-            x: (currentFrame.x + nextFrame.x) / 2,
-            y: (currentFrame.y + nextFrame.y) / 2,
-            // Zoom out significantly
-            scale: 1.0 // Zoom out to 100%
-        };
-
-        // Step 1: Zoom out to intermediate frame
-        dynamicImage.style.transitionDuration = `${transitionDuration / 2}ms`;
-        updateImageTransform(intermediateFrame);
+        // Step 1: Move to position A (start of chain)
+        updateImageTransform(posA.x, chain.y, posA.scale, 500);
 
         setTimeout(() => {
-            // Step 2: Zoom in to the next frame
-            updateImageTransform(nextFrame);
+            // Step 2: Pan from A to C (slow pan across the chain)
+            updateImageTransform(posC.x, chain.y, posC.scale, panDuration);
 
-            // Update state after the transition is complete
             setTimeout(() => {
-                currentFrameIndex = targetIndex;
-                updateProgressDots();
-                isAnimating = false;
-            }, transitionDuration / 2);
+                // Step 3: Prepare for ballistic transition to next chain
+                const nextChainIndex = (chainIndex + 1) % presentationChains.length;
+                const nextChain = presentationChains[nextChainIndex];
+                const nextPosA = nextChain.positions.A;
 
-        }, transitionDuration / 2);
+                // Calculate intermediate (zoomed-out) position
+                const intermediateFrame = {
+                    x: (posC.x + nextPosA.x) / 2,
+                    y: (chain.y + nextChain.y) / 2,
+                    scale: 1.0 // Zoom out
+                };
+
+                // Step 3a: Zoom out to intermediate position
+                updateImageTransform(intermediateFrame.x, intermediateFrame.y, intermediateFrame.scale, ballisticDuration / 2);
+
+                setTimeout(() => {
+                    // Step 3b: Zoom in to next chain's A position
+                    updateImageTransform(nextPosA.x, nextChain.y, nextPosA.scale, ballisticDuration / 2);
+
+                    setTimeout(() => {
+                        currentChainIndex = nextChainIndex;
+                        updateProgressDots();
+                        isAnimating = false;
+                    }, ballisticDuration / 2);
+
+                }, ballisticDuration / 2);
+
+            }, panDuration);
+
+        }, 500);
     }
 
     /**
@@ -108,14 +170,14 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function updateProgressDots() {
         progressDotsContainer.innerHTML = ''; // Clear existing dots
-        presentationFrames.forEach((_, index) => {
+        presentationChains.forEach((_, index) => {
             const dot = document.createElement('div');
             dot.classList.add('dot');
-            if (index === currentFrameIndex) {
+            if (index === currentChainIndex) {
                 dot.classList.add('active'); // Highlight active dot
             }
             dot.addEventListener('click', () => {
-                performBallisticTransition(index); // Jump to clicked frame
+                animateChain(index); // Jump to clicked chain
                 resetAutoAdvance();
             });
             progressDotsContainer.appendChild(dot);
@@ -123,28 +185,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Displays the current frame by applying its transform and updating dots.
-     * Handles wrapping around from last to first frame and vice-versa.
+     * Initializes the presentation to the first chain.
      */
-    function showCurrentFrame() {
-        // Wrap around logic
-        if (currentFrameIndex < 0) currentFrameIndex = presentationFrames.length - 1;
-        if (currentFrameIndex >= presentationFrames.length) currentFrameIndex = 0;
-
-        // Reset transition duration to default for non-ballistic moves (e.g., initialization, resize)
-        dynamicImage.style.transitionDuration = `${transitionDuration}ms`;
-
-        const frame = presentationFrames[currentFrameIndex];
-        updateImageTransform(frame);
+    function initializePresentation() {
+        const chain = presentationChains[currentChainIndex];
+        const posA = chain.positions.A;
+        dynamicImage.style.transitionDuration = '0ms'; // No transition for initialization
+        updateImageTransform(posA.x, chain.y, posA.scale, 0);
         updateProgressDots();
     }
 
     /**
-     * Advances to the next frame in the presentation.
+     * Advances to the next chain animation sequence.
      */
-    function advanceFrame() {
-        const newIndex = currentFrameIndex + 1;
-        performBallisticTransition(newIndex);
+    function advanceChain() {
+        const nextChainIndex = (currentChainIndex + 1) % presentationChains.length;
+        animateChain(nextChainIndex);
     }
 
     /**
@@ -152,45 +208,49 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function resetAutoAdvance() {
         clearInterval(autoAdvanceInterval); // Stop previous interval
-        autoAdvanceInterval = setInterval(advanceFrame, autoAdvanceSpeed); // Start new interval
+        // Calculate total time for one chain animation: initial move + pan + ballistic
+        const totalChainTime = 500 + panDuration + ballisticDuration;
+        autoAdvanceInterval = setInterval(advanceChain, totalChainTime + 1000); // Add 1s buffer
     }
 
     // --- Event Listeners ---
     // Previous button click
     prevBtn.addEventListener('click', () => {
-        const newIndex = currentFrameIndex - 1;
-        performBallisticTransition(newIndex);
+        const newIndex = currentChainIndex - 1;
+        animateChain(newIndex);
         resetAutoAdvance();
     });
 
     // Next button click
     nextBtn.addEventListener('click', () => {
-        const newIndex = currentFrameIndex + 1;
-        performBallisticTransition(newIndex);
+        const newIndex = currentChainIndex + 1;
+        animateChain(newIndex);
         resetAutoAdvance();
     });
 
     // Speed slider input changes
     speedSlider.addEventListener('input', (event) => {
-        // Map slider value (1-100) to speed (e.g., 1000ms to 10000ms for full cycle duration)
-        // Lower slider value = faster auto-advance (less time between frames)
-        // Higher slider value = slower auto-advance (more time between frames)
-        autoAdvanceSpeed = 1000 + (100 - parseInt(event.target.value)) * 100; // Range from 1s to 10s
-        // Update transition duration based on speed slider
-        transitionDuration = autoAdvanceSpeed;
-        dynamicImage.style.transitionDuration = `${transitionDuration / 2}ms`; // Transition time is half the advance speed
+        // Map slider value (1-100) to durations
+        // Lower slider value = faster animations
+        // Higher slider value = slower animations
+        const sliderValue = parseInt(event.target.value);
+        const speedFactor = (101 - sliderValue) / 50; // Range from 2 to 0.02
+
+        panDuration = Math.max(500, 1500 * speedFactor);
+        ballisticDuration = Math.max(500, 1500 * speedFactor);
+
         resetAutoAdvance();
     });
 
     // --- Initialization ---
-    // Display the first frame as soon as the DOM is loaded
-    showCurrentFrame();
+    // Initialize the presentation to the first chain
+    initializePresentation();
 
     // Start the automatic presentation loop
     resetAutoAdvance();
 
-    // Re-adjust transform on window resize to ensure correct centering for current frame
+    // Re-adjust transform on window resize
     window.addEventListener('resize', () => {
-        showCurrentFrame();
+        initializePresentation();
     });
 });
