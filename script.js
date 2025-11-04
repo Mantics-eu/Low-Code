@@ -34,6 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentFrameIndex = 0;
     let autoAdvanceInterval;
     let autoAdvanceSpeed = 3000; // Default speed in ms (3 seconds)
+    let isAnimating = false;
+    let transitionDuration = 1500; // Default transition duration in ms
 
     // --- Helper Functions ---
     /**
@@ -59,6 +61,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
+     * Performs the ballistic motion transition: zoom out, move, then zoom in.
+     * @param {number} newIndex - The index of the target frame.
+     */
+    function performBallisticTransition(newIndex) {
+        if (isAnimating) return;
+        isAnimating = true;
+
+        // Determine the target frame
+        let targetIndex = newIndex;
+        if (targetIndex < 0) targetIndex = presentationFrames.length - 1;
+        if (targetIndex >= presentationFrames.length) targetIndex = 0;
+
+        const currentFrame = presentationFrames[currentFrameIndex];
+        const nextFrame = presentationFrames[targetIndex];
+
+        // 1. Calculate the intermediate (zoomed-out) frame
+        const intermediateFrame = {
+            // Average the x and y positions
+            x: (currentFrame.x + nextFrame.x) / 2,
+            y: (currentFrame.y + nextFrame.y) / 2,
+            // Zoom out significantly
+            scale: 1.0 // Zoom out to 100%
+        };
+
+        // Step 1: Zoom out to intermediate frame
+        dynamicImage.style.transitionDuration = `${transitionDuration / 2}ms`;
+        updateImageTransform(intermediateFrame);
+
+        setTimeout(() => {
+            // Step 2: Zoom in to the next frame
+            updateImageTransform(nextFrame);
+
+            // Update state after the transition is complete
+            setTimeout(() => {
+                currentFrameIndex = targetIndex;
+                updateProgressDots();
+                isAnimating = false;
+            }, transitionDuration / 2);
+
+        }, transitionDuration / 2);
+    }
+
+    /**
      * Updates the visual progress indicators (dots) in the control panel.
      */
     function updateProgressDots() {
@@ -70,8 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 dot.classList.add('active'); // Highlight active dot
             }
             dot.addEventListener('click', () => {
-                currentFrameIndex = index; // Jump to clicked frame
-                showCurrentFrame();
+                performBallisticTransition(index); // Jump to clicked frame
                 resetAutoAdvance();
             });
             progressDotsContainer.appendChild(dot);
@@ -87,6 +131,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentFrameIndex < 0) currentFrameIndex = presentationFrames.length - 1;
         if (currentFrameIndex >= presentationFrames.length) currentFrameIndex = 0;
 
+        // Reset transition duration to default for non-ballistic moves (e.g., initialization, resize)
+        dynamicImage.style.transitionDuration = `${transitionDuration}ms`;
+
         const frame = presentationFrames[currentFrameIndex];
         updateImageTransform(frame);
         updateProgressDots();
@@ -96,8 +143,8 @@ document.addEventListener('DOMContentLoaded', () => {
      * Advances to the next frame in the presentation.
      */
     function advanceFrame() {
-        currentFrameIndex++;
-        showCurrentFrame();
+        const newIndex = currentFrameIndex + 1;
+        performBallisticTransition(newIndex);
     }
 
     /**
@@ -111,15 +158,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Listeners ---
     // Previous button click
     prevBtn.addEventListener('click', () => {
-        currentFrameIndex--;
-        showCurrentFrame();
+        const newIndex = currentFrameIndex - 1;
+        performBallisticTransition(newIndex);
         resetAutoAdvance();
     });
 
     // Next button click
     nextBtn.addEventListener('click', () => {
-        currentFrameIndex++;
-        showCurrentFrame();
+        const newIndex = currentFrameIndex + 1;
+        performBallisticTransition(newIndex);
         resetAutoAdvance();
     });
 
@@ -129,8 +176,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Lower slider value = faster auto-advance (less time between frames)
         // Higher slider value = slower auto-advance (more time between frames)
         autoAdvanceSpeed = 1000 + (100 - parseInt(event.target.value)) * 100; // Range from 1s to 10s
-        // Optionally, adjust CSS transition duration for a smoother/faster visual feel
-        dynamicImage.style.transitionDuration = `${(autoAdvanceSpeed / 2) / 1000}s`; // Half the autoAdvanceSpeed for transition
+        // Update transition duration based on speed slider
+        transitionDuration = autoAdvanceSpeed;
+        dynamicImage.style.transitionDuration = `${transitionDuration / 2}ms`; // Transition time is half the advance speed
         resetAutoAdvance();
     });
 
