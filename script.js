@@ -142,23 +142,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 const intermediateFrame = {
                     x: (posC.x + nextPosA.x) / 2,
                     y: (chain.y + nextChain.y) / 2,
-                    scale: 1.0 // Zoom out
+                    scale: 0.2 // Zoom out
                 };
 
                 // Step 3a: Zoom out to intermediate position
                 updateImageTransform(intermediateFrame.x, intermediateFrame.y, intermediateFrame.scale, ballisticDuration / 2);
 
-                // setTimeout(() => {
-                //     // Step 3b: Zoom in to next chain's A position
-                //     updateImageTransform(nextPosA.x, nextChain.y, nextPosA.scale, ballisticDuration / 2);
+                setTimeout(() => {
+                    // Step 3b: Zoom in to next chain's A position
+                    updateImageTransform(nextPosA.x, nextChain.y, nextPosA.scale, ballisticDuration / 2);
 
-                //     setTimeout(() => {
-                //         currentChainIndex = nextChainIndex;
-                //         updateProgressDots();
-                //         isAnimating = false;
-                //     }, ballisticDuration / 2);
+                    setTimeout(() => {
+                        currentChainIndex = nextChainIndex;
+                        updateProgressDots();
+                        isAnimating = false;
+                    }, ballisticDuration / 2);
 
-                // }, ballisticDuration / 2);
+                }, ballisticDuration / 2);
 
             }, panDuration);
 
